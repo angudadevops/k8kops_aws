@@ -3,6 +3,12 @@ set -e env
 
 u=$(uname)
 
+awsregions () {
+
+li=$(aws ec2 describe-regions --output text | cut -f4 | sort)
+echo -e "AWS valid Regions\n$li"
+}
+
 awsclimac() {
 if ! hash aws 2>/dev/null
 then
@@ -28,13 +34,14 @@ fi
 }
 
 awsconfigure() {
-ls -lrta $HOME/.aws/credentials
 if [ -f $HOME/.aws/credentials ]; then
 echo "Awc credentails already available at $HOME/.aws/credentials"
 else 
-aws configure           # Use your new access and secret key here
+# Use your new access and secret key here
+aws configure
 fi
-aws iam list-users      # you should see a list of all your IAM users here
+# you should see a list of all your IAM users here
+aws iam list-users
 
 # Because "aws configure" doesn't export these vars for kops to use, we export them now
 export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
@@ -66,31 +73,29 @@ awsstorage() {
 echo $1
 bu=$(aws s3api list-buckets | jq -r '.Buckets[].Name' | grep "prefix-kops-k8s-local-state-store" | tr -d '\n')
 if [[ $bu == "prefix-kops-k8s-local-state-store" ]]; then
-echo "Kops S3 bucket already exists"
+	echo "Kops S3 bucket already exists"
 else
-if [[ $1 == "us-east-1" ]]; then
-	aws s3api create-bucket --bucket prefix-kops-com-state-store --region us-east-1
-	#Cluster State storage
-	aws s3api put-bucket-versioning --bucket prefix-kops-com-state-store  --versioning-configuration Status=Enabled
-	#Using S3 default bucket encryption
-	aws s3api put-bucket-encryption --bucket prefix-kops-com-state-store --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-else
-        echo "aws s3api create-bucket --bucket prefix-kops-k8s-local-state-store --create-bucket-configuration LocationConstraint=$1"
+	if [[ $1 == "us-east-1" ]]; then
+		aws s3api create-bucket --bucket prefix-kops-k8s-local-state-store --region us-east-1
+		#Cluster State storage
+		aws s3api put-bucket-versioning --bucket prefix-kops-k8s-local-state-store  --versioning-configuration Status=Enabled
+		#Using S3 default bucket encryption
+		aws s3api put-bucket-encryption --bucket prefix-kops-k8s-local-state-store --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+	else
 
-	aws s3api create-bucket --bucket prefix-kops-k8s-local-state-store --create-bucket-configuration LocationConstraint=$1
-	#Cluster State storage
-	aws s3api put-bucket-versioning --bucket prefix-kops-k8s-local-state-store  --versioning-configuration Status=Enabled
-	#Using S3 default bucket encryption
-	aws s3api put-bucket-encryption --bucket prefix-kops-k8s-local-state-store --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-fi
+		aws s3api create-bucket --bucket prefix-kops-k8s-local-state-store --create-bucket-configuration LocationConstraint=$1
+		#Cluster State storage
+		aws s3api put-bucket-versioning --bucket prefix-kops-k8s-local-state-store  --versioning-configuration Status=Enabled
+		#Using S3 default bucket encryption
+		aws s3api put-bucket-encryption --bucket prefix-kops-k8s-local-state-store --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+	fi
 fi
 }
 
 kop() {
-read -p "Do you need HA K8's Cluster y or n:" ha
+read -p "Do you need HA K8's Cluster y or n? " ha
 if [[ $ha == "y" ]]; then
 	zones=$(aws ec2 describe-availability-zones --region $1 | jq -r '.AvailabilityZones[].ZoneName' | wc -l)
-	echo $zones
         if [[ $zones == 3 ]] || [[ $zones -gt 3 ]]; then
 		zonelist=$(aws ec2 describe-availability-zones --region $1 | jq -r '.AvailabilityZones[].ZoneName' | head -n 3 | tr '\n' ',' | sed 's/.$//')
 		echo $zonelist
@@ -118,7 +123,6 @@ while [ $secs -gt 0 ]; do
    : $((secs--))
 done
 nohup kubectl proxy --address='0.0.0.0' --accept-hosts='^*$' </dev/null >/dev/null 2>&1 &
-#kubectl port-forward -n kubernetes-dashboard service/kubernetes-dashboard 10443:443
 echo "Access Kubernetes Dashboard using http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
 kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token
 }
@@ -126,19 +130,19 @@ kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboar
 if [[ $u == "Darwin" ]]; then
         if ! hash brew 2>/dev/null
 	then
+    		echo "brew package was not found, installing"
 		/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-    		echo "brew was not found"
 	else 
                 echo "Brew already installed on MAC"
 		if [[ `brew list|grep kops` == "kops" ]] ; then
-		echo "Kops already installed on Mac"
+			echo "Kops already installed on Mac"
 		else
-		brew update && brew install kops
+			brew update && brew install kops
 		fi
 	fi
-	read -p "k8s AWS Region: " reg
-	echo $reg
 	awsclimac
+	#awsregions
+	read -p "AWS k8's region, currently supports us-west-2: " reg
 	awsconfigure $reg
 	awsstorage $reg
 	
@@ -149,7 +153,7 @@ if [[ $u == "Darwin" ]]; then
 	export KOPS_STATE_STORE=s3://prefix-kops-k8s-local-state-store
        
         if [ ! -f $HOME/.ssh/id_rsa.pub ]; then	
-        ssh-keygen
+        	ssh-keygen
 	fi	
 	kop $reg $NAME
         secs=$((6 * 60))
@@ -167,9 +171,9 @@ else
 	    chmod +x kops-linux-amd64
 	    sudo mv kops-linux-amd64 /usr/local/bin/kops
         fi
-	read -p "k8s AWS Region: " reg
-	echo $reg
         awsclilinux
+	#awsregions
+	read -p "AWS k8's region, currently supports us-west-2: " reg
 	awsconfigure $reg
 	awsstorage $reg
 	
