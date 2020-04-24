@@ -1,4 +1,5 @@
 #! /bin/bash 
+set -e env
 
 u=$(uname)
 
@@ -110,8 +111,15 @@ fi
 addons() {
 kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
 kubectl apply -f dashboard.yaml -n kubernetes-dashboard
+secs=$((3 * 60))
+while [ $secs -gt 0 ]; do
+   echo -ne "$secs\033[0K\r"
+   sleep 1
+   : $((secs--))
+done
+nohup kubectl proxy --address='0.0.0.0' --accept-hosts='^*$' </dev/null >/dev/null 2>&1 &
 #kubectl port-forward -n kubernetes-dashboard service/kubernetes-dashboard 10443:443
-echo "Access Kubernetes Dashboard using http://localhost:10443/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
+echo "Access Kubernetes Dashboard using http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
 kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token
 }
 
