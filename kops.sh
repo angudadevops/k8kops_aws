@@ -99,7 +99,7 @@ if [[ $ha == "y" ]]; then
         if [[ $zones == 3 ]] || [[ $zones -gt 3 ]]; then
 		zonelist=$(aws ec2 describe-availability-zones --region $1 | jq -r '.AvailabilityZones[].ZoneName' | head -n 3 | tr '\n' ',' | sed 's/.$//')
 		echo $zonelist
-		kops create cluster --node-count 3 --zones $zonelist --master-zones $zonelist --node-size t2.medium --master-size t2.medium $2
+		kops create cluster --node-count 3 --zones $zonelist --master-zones $zonelist --node-size t3a.xlarge --master-size t2.medium $2
 		kops update cluster $2 --yes
 	else
 		echo "$1 doesn't have 3 AZ's"
@@ -114,6 +114,7 @@ fi
 }
 
 addons() {
+
 kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
 kubectl apply -f dashboard.yaml -n kubernetes-dashboard
 secs=$((3 * 60))
@@ -124,7 +125,9 @@ while [ $secs -gt 0 ]; do
 done
 nohup kubectl proxy --address='0.0.0.0' --accept-hosts='^*$' </dev/null >/dev/null 2>&1 &
 echo "Access Kubernetes Dashboard using http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
-kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token
+tok=$(kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token: | awk '{print $2}')
+echo -e "Use this token to access dashbard\n$tok"
+
 }
 
 if [[ $u == "Darwin" ]]; then

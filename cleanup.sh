@@ -6,8 +6,6 @@ read -p "Are you sure you want to cleanup k8s on AWS y or n? " clean
 if [[ $clean == "y" ]]; then
 echo "Deleting the k8s cluster on AWS"
 
-kops delete cluster --name $(kops get clusters | awk '{print $1}' | grep -v NAME)
-
 kops delete cluster --name $(kops get clusters | awk '{print $1}' | grep -v NAME) --yes 
 
 echo "Removing the IAM Roles for kops"
