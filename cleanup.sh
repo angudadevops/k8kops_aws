@@ -1,3 +1,5 @@
+#!/bin/bash 
+#set -e env
 
 read -p "Are you sure you want to cleanup k8s on AWS y or n? " clean
 

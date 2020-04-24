@@ -1,15 +1,29 @@
+#! /bin/bash 
+
 u=$(uname)
 
-awscli() {
+awsclimac() {
 if ! hash aws 2>/dev/null
 then
     echo "aws was not installed"
-    curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-    unzip awscli-bundle.zip
-    sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+    curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+    sudo installer -pkg AWSCLIV2.pkg -target /
 else
     echo "AWS ClI already installed"
 fi
+}
+
+awsclilinux () {
+if ! hash aws 2>/dev/null
+then
+	echo "AWS not installed"
+	curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+else
+	echo "AWS CLI already installed"
+fi
+
 }
 
 awsconfigure() {
@@ -116,7 +130,7 @@ if [[ $u == "Darwin" ]]; then
 	fi
 	read -p "k8s AWS Region: " reg
 	echo $reg
-	awscli
+	awsclimac
 	awsconfigure $reg
 	awsstorage $reg
 	
@@ -125,7 +139,10 @@ if [[ $u == "Darwin" ]]; then
 
 	export NAME=$name
 	export KOPS_STATE_STORE=s3://prefix-kops-k8s-local-state-store
-	
+       
+        if [ ! -f $HOME/.ssh/id_rsa.pub ]; then	
+        ssh-keygen
+	fi	
 	kop $reg $NAME
         secs=$((6 * 60))
    	while [ $secs -gt 0 ]; do
@@ -138,15 +155,15 @@ if [[ $u == "Darwin" ]]; then
 else
         if ! hash kops 2>/dev/null
         then
-            curl -LO https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+	    wget https://github.com/kubernetes/kops/releases/download/v1.16.1/kops-linux-amd64
 	    chmod +x kops-linux-amd64
 	    sudo mv kops-linux-amd64 /usr/local/bin/kops
         fi
 	read -p "k8s AWS Region: " reg
 	echo $reg
-        awscli
-	awsconfigure
-	awsstorge
+        awsclilinux
+	awsconfigure $reg
+	awsstorage $reg
 	
         echo "Enter Cluster name like domain or subdomain or for gossip based cluster use like 'kops.k8s.local'"
         read -p "Cluster Name: " name
