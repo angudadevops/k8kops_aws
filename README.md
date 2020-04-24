@@ -10,7 +10,8 @@
 
 ## Usage
 
-First downnload or clone to your system
+Download or clone to your system
+
 ```
 git clone https://github.com/angudadevops/k8kops_aws.git
 ```
