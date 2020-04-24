@@ -20,6 +20,7 @@ Now run the below command help you to install k8's on AWS, as script will requir
 - AWS access key
 - AWS secret key
 - AWS Region for k8's
+  - Note: Currently automation supports for us-west-2, will fix soon for other Regions
 - K8's clsuter name
   - Note: Here you use gosip cluster which doesn't require any route53, but you want to use route53 you use as cluster name
 
