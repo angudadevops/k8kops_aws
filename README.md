@@ -1,4 +1,5 @@
 # This repository help you to install k8's on AWS with kops
+[![HitCount](http://hits.dwyl.com/angudadevops/k8kops_aws.svg)](http://hits.dwyl.com/angudadevops/k8kops_aws)
 
 ## Prerequisites
 - AWS access key
